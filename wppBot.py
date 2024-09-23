@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 import os
 import time
 import requests
-from constants import API_KEY
+from constants import API_KEY, agent
 
 def start_driver():
     '''Função com todas as configurações do browser'''
@@ -19,61 +19,67 @@ def start_driver():
     driver = webdriver.Edge(options=options)
     return driver
 
-#API 
-agent = {"User-Agent": 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'}
+def getApi(api_key=API_KEY, agent=agent):
+    # Faz a requisição à API
+    api_response = requests.get(api_key, headers=agent)
+    time.sleep(1)  # Aguarda 1 segundo
 
-#CHAVE    xgLNUFtZsAbhZZaxkRh5ofM6Z0YIXwwv
-api = requests.get(API_KEY,  headers=agent)
-time.sleep(1)
-api = api.text
-api = api.split(".n.")
-bolinha_notificacao = api[3].strip()
-contato_cliente = api[4].strip()
-caixa_msg = api[5].strip()
-msg_cliente = api[6].strip()
-caixa_msg2 = api[7].strip()
-caixa_pesquisa = api[8].strip()
+    # Processa a resposta
+    api_text = api_response.text
+    api_parts = api_text.split(".n.")
+
+    # Extrai os dados desejados e remove espaços em branco
+    bolinha_notificacao = api_parts[3].strip()
+    contato_cliente = api_parts[4].strip()
+    caixa_msg = api_parts[5].strip()
+    msg_cliente = api_parts[6].strip()
+    caixa_msg2 = api_parts[7].strip()
+    caixa_pesquisa = api_parts[8].strip()
+
+    return {
+        'notify_ball': bolinha_notificacao,
+        'number_client': contato_cliente,
+        'box_msg': caixa_msg,
+        'client_msg': msg_cliente,
+        'box_msg_2': caixa_msg2,
+        'search_box': caixa_pesquisa
+    }
 
 
+def bot(driver, element):
 
-
-driver = start_driver()
-driver.get('https://web.whatsapp.com/')
-time.sleep(10)
-
-def bot():
     try:
         
         #CAPTURAR A BOLINHA
-        bolinha = driver.find_element(By.CLASS_NAME,bolinha_notificacao)
-        bolinha = driver.find_elements(By.CLASS_NAME,bolinha_notificacao)
-        clica_bolinha = bolinha[-1]
-        acao_bolinha = webdriver.common.action_chains.ActionChains(driver)
-        acao_bolinha.move_to_element_with_offset(clica_bolinha,0,-20)
-        acao_bolinha.click()
-        acao_bolinha.perform()
-        acao_bolinha.click()
-        acao_bolinha.perform()
+        green_ball = driver.find_element(By.CLASS_NAME,element['notify_ball'])
+        green_ball = driver.find_elements(By.CLASS_NAME,element['notify_ball'])
+        click_ball = green_ball[-1]
+        action_ball = webdriver.common.action_chains.ActionChains(driver)
+        action_ball.move_to_element_with_offset(click_ball,0,-20)
+        action_ball.click()
+        action_ball.perform()
+        action_ball.click()
+        action_ball.perform()
         time.sleep(1)
 
         #PEGAR O TELEFONE
-        telefone_cliente = driver.find_element(By.XPATH,contato_cliente)
-        telefone_final = telefone_cliente.text 
-        print(f'Número: {telefone_final}')
+        client_number = driver.find_element(By.XPATH,element['number_client'])
+        final_number = client_number.text 
+        print(f'Número: {final_number}')
         time.sleep(2)
 
         #PEGAR A MSG DO CLIENTE
-        todas_as_msg = driver.find_elements(By.CLASS_NAME,msg_cliente)
-        todas_as_msg_texto = [e.text for e in todas_as_msg]
-        msg = todas_as_msg_texto[-1]
+        all_msg_element = driver.find_elements(By.CLASS_NAME,element['client_msg'])
+        all_msg = [e.text for e in all_msg_element]
+        msg = all_msg[-1]
         print(f'Mensagem: {msg}')
         time.sleep(2)
 
         #RESPONDENDO CLIENTE
-        campo_de_texto = driver.find_element(By.XPATH,caixa_msg)
-        campo_de_texto.click()
+        box_msg_element = driver.find_element(By.XPATH,element['box_msg'])
+        box_msg_element.click()
         time.sleep(1)
-        campo_de_texto.send_keys('Olá aqui é o Nagore. Como posso ajudar?', Keys.ENTER)
+        box_msg_element.send_keys('Olá aqui é o Nagore. Como posso ajudar?', Keys.ENTER)
 
 
         #FECHAR CONTATO
@@ -82,9 +88,11 @@ def bot():
 
     except Exception as e:
         pass
-        #entao vou tentar isso aqui 
 
-
-
-while True:
-    bot()
+if __name__ == '__main__':
+    driver = start_driver()
+    driver.get('https://web.whatsapp.com/')
+    time.sleep(20)
+    element = getApi()
+    while True:
+        bot(driver=driver, element=element)
